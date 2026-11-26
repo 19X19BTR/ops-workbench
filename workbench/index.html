@@ -106,6 +106,7 @@ function buildKnowledge(C){
   materialColorRules:(C.materialColorRules||[]).map(rule=>Object.assign({},rule,{re:asRe(rule.pattern,'$^')})),
   colorWords:C.colorWords||[],colorSuffixes:C.colorSuffixes||[],
   multiItemCodes:C.multiItemCodes||[],multiColorMaterials:C.multiColorMaterials||[],
+  materialInferred:C.materialInferred||[],
   codeField:C.codeField||'商品编码',sourceColorField:C.sourceColorField||'源颜色字段',
   typeField:C.typeField||'类型候选',materialField:C.materialField||'材质候选',colorField:C.colorField||'颜色候选',
   nameFields:C.nameFields||[],specField:C.specField||'',
@@ -167,6 +168,11 @@ function classifyCatalog(sh,r){
    if(result[K.materialField]===rule.material&&rule.re.test(clues)){colors=[rule.result];break;}
   }
  }
+ if(!colors.length&&!/仿|人造|合成|染色|镀色/.test(clues)){
+  for(const item of K.materialInferred||[]){
+   if(result[K.materialField]===item.name&&clues.includes(item.name)){colors=[item.inferred+'（按'+item.name+'名称推定）'];break;}
+  }
+ }
  const multiItem=(K.multiItemCodes||[]).includes(get(K.codeField));
  if(!colors.length&&!multiItem&&(K.multiColorMaterials||[]).includes(result[K.materialField])&&!K.excludePattern.test(clues)){
   colors=[K.multiColorResult];
@@ -179,7 +185,7 @@ function renderCatalog(c,d){
  const sh=d.sheets[0];if(catalogClassificationCache?.source!==d)catalogClassificationCache={source:d,values:new Map(sh.rows.map(r=>[r,classifyCatalog(sh,r)]))};
  const idx=Object.fromEntries(sh.safeHeaders.map((h,i)=>[h,i])), fields=['类型候选','材质候选','颜色候选'], classified=catalogClassificationCache.values, val=(r,k)=>fields.includes(k)?classified.get(r)[k]:fmt(r[idx[k]]).trim(), split=v=>v.split('、').map(x=>x.trim()).filter(Boolean), isUnclassified=v=>/未识别|未分类/.test(v);
  const options=Object.fromEntries(fields.map(f=>[f,[...new Set(sh.rows.flatMap(r=>split(val(r,f))))].sort((a,b)=>a.localeCompare(b,'zh-CN'))]));
- const identity=r=>{const names=['优先商品名称','聚水潭商品名称'].map(k=>val(r,k)).filter(Boolean);return !names.length?'未识别':names.some(n=>n.toLowerCase().WORKBENCH.classify.rawNamePattern.test(n))?'成品':'原料'};
+ const identity=r=>{const names=['优先商品名称','聚水潭商品名称'].map(k=>val(r,k)).filter(Boolean);return !names.length?'未识别':names.some(n=>catalogKnowledge.rawNamePattern.test(n))?'成品':'原料'};
  const q=state.query.trim().toLowerCase();
  const rows=sh.rows.filter(r=>(!state.catalogIdentity||identity(r)===state.catalogIdentity)&&fields.every(f=>!state.filters[f]||split(val(r,f)).includes(state.filters[f]))&&(!state.catalogReview||fields.some(f=>split(val(r,f)).some(isUnclassified)))&&(!q||sh.safeHeaders.some((_,i)=>fmt(r[i]).toLowerCase().includes(q))));
  const ordered=prioritizeImages(sh,rows), total=ordered.length,size=state.pageSizes.catalog,max=Math.max(0,Math.ceil(total/size)-1);state.page=Math.min(state.page,max);const shown=ordered.slice(state.page*size,(state.page+1)*size);
@@ -261,13 +267,27 @@ function applyTheme(theme,persist=false){const selected=theme==='dark'?'dark':'l
 let savedTheme='light';try{savedTheme=localStorage.getItem('cp-theme')||'light'}catch(e){}applyTheme(savedTheme);
 document.querySelectorAll('[data-theme-choice]').forEach(b=>b.onclick=()=>applyTheme(b.dataset.themeChoice,true));
 document.querySelectorAll('[data-settings-tab]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-settings-tab]').forEach(x=>{const active=x===b;x.classList.toggle('active',active);if(active)x.setAttribute('aria-current','page');else x.removeAttribute('aria-current')});document.querySelector('#settings-data').hidden=b.dataset.settingsTab!=='data';document.querySelector('#settings-appearance').hidden=b.dataset.settingsTab!=='appearance'});openSettings.onclick=()=>settings.showModal();document.querySelector('#close-settings').onclick=()=>settings.close();settings.addEventListener('close',()=>openSettings.focus());
-document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{if(state.tab===b.dataset.tab)return;state.tab=b.dataset.tab;state.sheet='';state.session='';state.query='';state.page=0;render();if(!window.matchMedia('(prefers-reduced-motion: reduce)').matches){const content=document.querySelector('#content');if(content?.animate)content.animate([{opacity:.25,transform:'translateY(14px)'},{opacity:1,transform:'translateY(0)'}],{duration:380,easing:'cubic-bezier(.22,.7,.2,1)'});b.animate?.([{transform:'scale(.94)'},{transform:'scale(1)'}],{duration:260,easing:'ease-out'})}});boot();
+document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{if(state.tab===b.dataset.tab)return;state.tab=b.dataset.tab;state.sheet='';state.session='';state.query='';state.page=0;render();if(!window.matchMedia('(prefers-reduced-motion: reduce)').matches){const content=document.querySelector('#content');if(content?.animate)content.animate([{opacity:.25,transform:'translateY(14px)'},{opacity:1,transform:'translateY(0)'}],{duration:380,easing:'cubic-bezier(.22,.7,.2,1)'});b.animate?.([{transform:'scale(.94)'},{transform:'scale(1)'}],{duration:260,easing:'ease-out'})}});
 
+// 导航绑定：放在 boot 里显式执行，避免依赖脚本尾部语句的执行顺序
+function bindTabs(){
+ document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{
+  if(state.tab===b.dataset.tab)return;
+  state.tab=b.dataset.tab;state.sheet='';state.session='';state.query='';state.page=0;
+  render();
+  if(!window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+   const content=document.querySelector('#content');
+   if(content&&content.animate)content.animate([{opacity:.25,transform:'translateY(14px)'},{opacity:1,transform:'translateY(0)'}],{duration:380,easing:'cubic-bezier(.22,.7,.2,1)'});
+   if(b.animate)b.animate([{transform:'scale(.94)'},{transform:'scale(1)'}],{duration:260,easing:'ease-out'});
+  }
+ });
+}
 async function boot(){
  try{
   const response=await fetch('/api/config',{cache:'no-store'});
   if(response.ok)applyConfig(await response.json());
  }catch(ex){/* 配置拿不到时保持空配置，界面会提示无法读取 */}
+ bindTabs();
  sourceCards();render();Object.keys(specs).forEach(load);
 }
 boot();
