@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.DS_Store
+# 本地真实配置（含公司表结构、路径、词库）绝不入库
+config/config.json
+# 图片缓存（按需生成）
+image_cache/
+# 演示数据可重新生成，但保留便于直接跑
+!demo/*.xlsx
