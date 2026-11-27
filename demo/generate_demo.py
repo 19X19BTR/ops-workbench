@@ -59,20 +59,34 @@ def write_live() -> None:
     book = Workbook()
     sheet = book.active
     sheet.title = "直播数据"
-    sheet.append(["直播间ID", "直播间名称", "开播时间", "直播结束时间", "直播时长（秒）",
-                  "整体消耗", "整体支付ROI", "整体成交金额", "整体成交订单数", "GPM",
-                  "直播间整体观看人数", "直播间成交人数", "商品点击率（人数）",
-                  "点击成交转化率（人数）", "内部备注"])
+    sheet.append(["直播间ID", "直播间名称", "直播间标题", "直播间状态", "抖音号ID",
+                  "开播时间", "直播结束时间", "直播时长（秒）",
+                  "整体消耗", "整体支付ROI", "整体成交金额", "整体成交订单数",
+                  "整体成交订单成本", "GPM", "直播间整体曝光次数", "直播间整体观看人数",
+                  "直播间观看人数", "直播间观看人次", "直播间商品曝光人数", "直播间商品曝光次数",
+                  "直播间商品点击人数", "直播间成交人数", "商品点击率（人数）",
+                  "点击成交转化率（人数）", "看播成交转化率（人数）", "人均观看时长",
+                  "直播间成交订单数", "内部备注"])
     start = datetime(2026, 1, 1, 19, 0)
     for sid, name, begin, minutes, pv, uv, fans in SESSIONS:
         spend = round(random.uniform(800, 2000), 2)
         gmv = round(spend * random.uniform(2.2, 3.4), 2)
         orders = random.randint(40, 90)
         end = begin + timedelta(minutes=minutes)
-        sheet.append([sid, name, begin, end, minutes * 60, spend,
-                      round(gmv / spend, 2), gmv, orders, round(gmv / pv * 1000, 2),
-                      pv, random.randint(30, 70), round(random.uniform(3, 8), 2),
-                      round(random.uniform(8, 20), 2), "这一列不在白名单，不应出现在接口里"])
+        buyers = random.randint(30, 70)
+        clicks = int(buyers * random.uniform(1.6, 2.4))
+        impressions = int(pv * random.uniform(1.2, 1.8))
+        sheet.append([sid, name, f"{name}·示例场次", "已结束", f"demo{sid[-3:]}",
+                      begin, end, minutes * 60,
+                      spend, round(gmv / spend, 2), gmv, orders,
+                      round(spend / max(orders, 1), 2), round(gmv / impressions * 1000, 2),
+                      impressions, pv, int(pv * 0.62), int(pv * 1.9), int(pv * 0.55),
+                      int(impressions * 0.7), clicks, buyers,
+                      round(clicks / max(pv * 0.55, 1) * 100, 2),
+                      round(buyers / max(clicks, 1) * 100, 2),
+                      round(buyers / max(pv * 0.62, 1) * 100, 2),
+                      round(random.uniform(40, 95), 1), orders,
+                      "这一列不在白名单，不应出现在接口里"])
     book.save(DEMO / "live.xlsx")
 
 

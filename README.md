@@ -1,12 +1,26 @@
 # 运营数据工作台（ops-workbench）
 
+`Python 3.9+` · `50 个测试` · `MIT` · `零前端构建` · `只读`
+
 把几份**每天要维护的 Excel**（直播场次、订单、库存、商品货盘）变成**一个只读网页**：左边切视图，右边查数据，图片直接显示，分类自动补全。
+
+![直播场次复盘](docs/screenshots/live.png)
 
 给电商运营/直播团队用的。它解决的不是"分析"，而是**"今天这张表到底什么情况"**——四张表来回导、来回对照，一天要花一两个小时的事。
 
 > 这个项目是从一个真实在用的内部工作台去敏而来的：**逻辑保留，业务内容全部抽成配置**。
 > 仓库里没有任何真实业务数据、公司标识或原表结构，示例数据由 `demo/generate_demo.py` 合成。
 > 内部版的迁移脚本（含原路径）不随仓库发布。
+
+## 长什么样
+
+| 商品库：分类自动补全 + 图片 | 商品库存：图片缺失就写“源表无图片” |
+|---|---|
+| ![商品库](docs/screenshots/catalog.png) | ![商品库存](docs/screenshots/stock.png) |
+
+| 订单查询 | 源字段浏览（只看字段名，不看数据） |
+|---|---|
+| ![订单](docs/screenshots/orders.png) | ![源字段](docs/screenshots/fields.png) |
 
 ## 五个设计决策（每个都对应一个真实踩过的坑）
 
@@ -18,17 +32,27 @@
 | **图片内容寻址** | 图片按 URL 的 SHA-256 存成 `.img`，天然去重；缺图明确标 `missing`/`unavailable`，**不拿相似商品凑图** |
 | **分类分级兜底** | 顺序是：源表已有值 → 名称明示词 → 商业别名 → 材料常见色范围 → 未分类。每一级都能说出依据，且从不声称"鉴定" |
 
-## 快速开始
+## 5 分钟上手
+
+需要：Python 3.9+（macOS / Windows / Linux 都行），**不需要数据库、不需要 Node、不需要联网**。
 
 ```bash
 git clone https://github.com/19X19BTR/ops-workbench.git
 cd ops-workbench
-pip install -r requirements.txt          # 只有 openpyxl + Pillow
 
+pip install -r requirements.txt          # 只有 openpyxl + Pillow
 cp config/config.example.json config/config.json
-python demo/generate_demo.py             # 生成合成示例数据
-python server.py                         # 打开 http://127.0.0.1:8765
+python demo/generate_demo.py             # 生成合成示例数据（4 个 xlsx + 4 张图）
+python server.py                         # 终端会打印地址
 ```
+
+然后浏览器打开 **http://127.0.0.1:8765**。看完按 `Ctrl+C` 停掉。
+
+> 想直接跳到某个视图：`http://127.0.0.1:8765/?tab=catalog`（可选 `live` / `orders` / `stock` / `fields`）
+>
+> 失败排查：`python -c "import openpyxl, PIL"` —— 报 `ModuleNotFoundError` 就是依赖没装上；端口被占用就 `python server.py --port 8770`。
+
+**不想敲命令？** macOS 双击 `start.command`，Windows 双击 `start.bat`：会自动装依赖、生成演示数据、打开浏览器。
 
 ## 配置：唯一需要你改的地方
 
@@ -112,6 +136,8 @@ ops-workbench/
 ├── config/config.example.json  # 配置模板：字段白名单 + 分类词库
 ├── demo/generate_demo.py     # 合成演示数据
 ├── config/knowledge.shared.json  # 授权去敏的分类词库
+├── docs/screenshots/         # 界面截图（真实渲染，非示意图）
+├── start.command / start.bat # 双击启动（macOS/Linux、Windows）
 └── tests/                    # 服务端 + 分类逻辑测试
 ```
 
